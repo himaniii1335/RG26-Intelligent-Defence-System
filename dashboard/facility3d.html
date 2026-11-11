@@ -85,6 +85,7 @@
   <div class="m"><b id="m-risk">0</b><span>Facility risk</span></div>
   <div class="m"><b id="m-crit">0</b><span>Critical</span></div>
   <div class="m"><b id="m-corr">0</b><span>Correlated</span></div>
+  <a href="#" id="soundBtn" title="Arm the alarm; it sounds only when a zone turns critical">Alarm off</a>
   <a href="#" id="themeBtn">Night view</a>
   <a href="/">Analyst view</a>
 </div>
@@ -131,7 +132,7 @@ const THEME = {
     grass:  0x7fa05f, pad:0x9aa0a6, fence:0x7c838c, roof:0x6f7884,
     glass:  0x2d3f5c, glassGlow:0x000000,
     foliage:0x4f7a3c, trunk:0x5c4330,
-    fog:    0xcfe0f3, fogNear:70, fogFar:190,
+    fog:    0xcfe0f3, fogNear:120, fogFar:430,
     hemi:   {sky:0xdceaff, ground:0x6f8a5a, power:0.85},
     sun:    {color:0xffffff, power:0.75},
     lamp:   0,
@@ -141,7 +142,7 @@ const THEME = {
     grass:  0x24331f, pad:0x343a42, fence:0x3a4048, roof:0x2b313a,
     glass:  0x1a2334, glassGlow:0xffcf6b,
     foliage:0x1f3a22, trunk:0x2a2018,
-    fog:    0x0d1526, fogNear:55, fogFar:165,
+    fog:    0x0d1526, fogNear:90, fogFar:360,
     hemi:   {sky:0x2a3b63, ground:0x11170f, power:0.30},
     sun:    {color:0x9db7e8, power:0.14},
     lamp:   1.5,
@@ -209,7 +210,7 @@ function skyTexture(isNight){
 
 // -- ground, pad and fence --------------------------------------------------
 const grass = new THREE.Mesh(
-  new THREE.PlaneGeometry(260, 260),
+  new THREE.PlaneGeometry(900, 900),
   new THREE.MeshLambertMaterial({color:0x7fa05f})
 );
 grass.rotation.x = -Math.PI/2;
@@ -285,12 +286,12 @@ function shrub(x, z, s){
 }
 
 // Tree line outside the fence, so the facility sits in a landscape.
-for(let i = 0; i < 70; i++){
+for(let i = 0; i < 46; i++){
   const a = rand() * Math.PI * 2;
-  const r = 46 + rand() * 62;
+  const r = 52 + rand() * 90;
   const x = Math.cos(a) * r, z = Math.sin(a) * r;
-  if(Math.abs(x) < 41 && Math.abs(z) < 41) continue;
-  tree(x, z, 0.85 + rand() * 0.75);
+  if(Math.abs(x) < 42 && Math.abs(z) < 42) continue;
+  tree(x, z, 0.7 + rand() * 0.5);
 }
 // A few inside the wire, in the corners the buildings do not use.
 for(const [x, z] of [[-31, 30], [31, 31], [-32, -32], [30, -30], [-28, 14], [29, 4]]){
@@ -318,6 +319,230 @@ for(const [x, z] of [[-30, 30], [30, 30], [-30, -30], [30, -30], [0, 32], [0, -3
   light.position.set(x, 8.0, z);
   scene.add(light);
   lampLights.push({light, head});
+}
+
+// -- base installations ------------------------------------------------------
+// Everything below is built from primitives. It is a schematic of a defence
+// installation, not a survey of one: enough for an operator to recognise the
+// watchtower, the mast, the hangars and the vehicle park at a glance.
+
+const themedMats = [];
+function mat(dayHex, nightHex){
+  const m = new THREE.MeshLambertMaterial({color: dayHex});
+  themedMats.push({m, day: dayHex, night: nightHex});
+  return m;
+}
+const M = {
+  concrete: mat(0xb9b4a2, 0x3b3c38),
+  metal:    mat(0x8d9199, 0x343840),
+  sand:     mat(0xc8b78c, 0x46412f),
+  olive:    mat(0x6b7042, 0x262918),
+  rust:     mat(0x8a5a3a, 0x31211b),
+  dark:     mat(0x4a4f57, 0x1f2227),
+  tyre:     mat(0x2a2c2e, 0x141516),
+  warn:     mat(0xc0392b, 0x6a2019),
+  pale:     mat(0xe8e6df, 0x6d6d68),
+  rock:     mat(0x6f6a5c, 0x23242a),
+  hut:      mat(0xa39f90, 0x3a3b36),
+  snow:     mat(0xf2f4f7, 0x8a93a6),
+};
+const blinkers = [];   // aviation obstruction lights on tall structures
+
+function box(w, h, d, m, x, y, z, ry){
+  const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+  b.position.set(x, y, z);
+  if(ry) b.rotation.y = ry;
+  b.castShadow = true; b.receiveShadow = true;
+  return b;
+}
+function cyl(rt, rb, h, m, x, y, z, seg){
+  const c = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 14), m);
+  c.position.set(x, y, z);
+  c.castShadow = true;
+  return c;
+}
+
+function watchtower(x, z, ry){
+  const g = new THREE.Group();
+  const H = 9;
+  for(const [lx, lz] of [[-1.3,-1.3],[1.3,-1.3],[-1.3,1.3],[1.3,1.3]]){
+    g.add(box(0.34, H, 0.34, M.metal, lx, H/2, lz));
+    // cross bracing, which is what makes a tower read as a tower
+    for(let y = 1.6; y < H - 1; y += 2.4){
+      const br = box(3.0, 0.16, 0.16, M.metal, 0, y, lz);
+      br.rotation.z = 0.5; g.add(br);
+    }
+  }
+  g.add(box(4.2, 0.4, 4.2, M.concrete, 0, H, 0));
+  g.add(box(3.4, 1.0, 3.4, M.concrete, 0, H + 0.7, 0));
+  g.add(box(3.5, 1.3, 3.5, M.dark, 0, H + 1.9, 0));      // glazed observation band
+  g.add(box(3.9, 0.3, 3.9, M.metal, 0, H + 2.7, 0));
+  g.add(cyl(0.08, 0.08, 3, M.metal, 1.2, H + 4.2, 1.2, 6));
+
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 8),
+    new THREE.MeshBasicMaterial({color:0x5a1d16}));
+  lamp.position.set(1.2, H + 5.7, 1.2);
+  g.add(lamp);
+  blinkers.push(lamp);
+
+  g.position.set(x, 0, z);
+  if(ry) g.rotation.y = ry;
+  scene.add(g);
+}
+
+function mast(x, z){
+  const g = new THREE.Group();
+  const H = 20;
+  for(const [lx, lz] of [[-0.8,-0.8],[0.8,-0.8],[-0.8,0.8],[0.8,0.8]]){
+    g.add(cyl(0.12, 0.12, H, M.metal, lx, H/2, lz, 6));
+  }
+  for(let y = 2; y < H; y += 2.2){
+    g.add(box(1.9, 0.1, 0.1, M.metal, 0, y, -0.8));
+    g.add(box(1.9, 0.1, 0.1, M.metal, 0, y,  0.8));
+    g.add(box(0.1, 0.1, 1.9, M.metal, -0.8, y, 0));
+    g.add(box(0.1, 0.1, 1.9, M.metal,  0.8, y, 0));
+  }
+  // Dipole arms near the top, so it reads as communications, not a crane.
+  g.add(box(5.5, 0.1, 0.1, M.metal, 0, H - 2.0, 0));
+  g.add(box(4.0, 0.1, 0.1, M.metal, 0, H - 3.6, 0));
+
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.34, 10, 8),
+    new THREE.MeshBasicMaterial({color:0x5a1d16}));
+  lamp.position.y = H + 0.5;
+  g.add(lamp);
+  blinkers.push(lamp);
+
+  g.position.set(x, 0, z);
+  scene.add(g);
+}
+
+function dish(x, z, ry){
+  const g = new THREE.Group();
+  g.add(cyl(0.9, 1.1, 0.5, M.concrete, 0, 0.25, 0));
+  g.add(cyl(0.3, 0.3, 2.6, M.metal, 0, 1.6, 0, 10));
+  const d = new THREE.Mesh(
+    new THREE.SphereGeometry(2.1, 22, 14, 0, Math.PI*2, 0, Math.PI/2.4),
+    new THREE.MeshLambertMaterial({color:0xe3e1d8, side:THREE.DoubleSide})
+  );
+  themedMats.push({m: d.material, day:0xe3e1d8, night:0x6b6c68});
+  d.position.y = 3.2;
+  d.rotation.x = -Math.PI * 0.72;     // tilted up towards the sky
+  d.castShadow = true;
+  g.add(d);
+  g.add(cyl(0.1, 0.1, 1.8, M.metal, 0, 3.6, 0, 6));
+  g.position.set(x, 0, z);
+  if(ry) g.rotation.y = ry;
+  scene.add(g);
+}
+
+function hangar(x, z, len){
+  const g = new THREE.Group();
+  const r = 3.1;
+  // A full cylinder with its lower half below the ground reads as the curved
+  // corrugated hut without any geometry trimming.
+  const shell = cyl(r, r, len, M.hut, 0, 0, 0, 22);
+  shell.rotation.z = Math.PI/2;
+  g.add(shell);
+  for(const e of [-1, 1]){
+    const cap = cyl(r, r, 0.3, M.sand, e * len/2, 0, 0, 22);
+    cap.rotation.z = Math.PI/2;
+    g.add(cap);
+  }
+  g.add(box(0.2, 2.2, 2.6, M.dark, -len/2 - 0.15, 1.1, 0));   // door
+  g.position.set(x, 0, z);
+  scene.add(g);
+}
+
+function truck(x, z, ry){
+  const g = new THREE.Group();
+  g.add(box(6.4, 0.5, 2.4, M.dark, 0, 0.95, 0));
+  g.add(box(3.6, 2.0, 2.5, M.olive, -1.0, 2.2, 0));      // canvas-backed bed
+  g.add(box(1.8, 1.6, 2.4, M.olive,  2.0, 2.0, 0));      // cab
+  g.add(box(0.2, 0.9, 2.1, M.dark,   2.9, 2.3, 0));      // windscreen
+  for(const [wx, wz] of [[2.0,1.3],[2.0,-1.3],[-0.6,1.3],[-0.6,-1.3],[-2.0,1.3],[-2.0,-1.3]]){
+    const w = cyl(0.62, 0.62, 0.42, M.tyre, wx, 0.62, wz, 12);
+    w.rotation.x = Math.PI/2;
+    g.add(w);
+  }
+  g.position.set(x, 0, z);
+  if(ry) g.rotation.y = ry;
+  scene.add(g);
+}
+
+function sandbags(x, z, len, ry){
+  const g = new THREE.Group();
+  const bw = 1.15, bh = 0.52;
+  for(let row = 0; row < 5; row++){
+    const n = Math.floor(len / bw) - row;
+    const off = (row % 2) * bw * 0.5;
+    for(let i = 0; i < n; i++){
+      const b = box(bw * 0.94, bh, 0.95, M.sand,
+                    -len/2 + off + i * bw + bw/2, bh/2 + row * bh, 0);
+      b.rotation.y = (i % 2 ? 0.06 : -0.06);
+      g.add(b);
+    }
+  }
+  g.position.set(x, 0, z);
+  if(ry) g.rotation.y = ry;
+  scene.add(g);
+}
+
+function barrels(x, z, n){
+  for(let i = 0; i < n; i++){
+    const a = (i / n) * Math.PI * 2;
+    const r = 0.95;
+    const b = cyl(0.42, 0.42, 1.2, i % 2 ? M.olive : M.rust,
+                  x + Math.cos(a) * r, 0.6, z + Math.sin(a) * r, 12);
+    scene.add(b);
+  }
+}
+
+function crates(x, z){
+  scene.add(box(1.8, 1.0, 1.4, M.olive, x, 0.5, z, 0.2));
+  scene.add(box(1.6, 0.9, 1.3, M.olive, x + 0.2, 1.45, z - 0.1, -0.15));
+  scene.add(box(1.7, 1.0, 1.3, M.olive, x + 2.1, 0.5, z + 0.9, 0.5));
+}
+
+function gateBarrier(x, z){
+  scene.add(cyl(0.22, 0.26, 1.6, M.concrete, x - 3.4, 0.8, z, 10));
+  const boom = box(7.0, 0.22, 0.22, M.warn, x, 1.55, z);
+  boom.rotation.z = 0.06;
+  scene.add(boom);
+  for(let i = -3; i <= 3; i += 2) scene.add(box(0.8, 0.24, 0.24, M.pale, x + i, 1.55, z));
+  scene.add(box(2.4, 2.2, 2.0, M.concrete, x - 6.5, 1.1, z + 2.4));   // guard post
+  scene.add(box(2.5, 0.9, 2.1, M.dark,     x - 6.5, 2.0, z + 2.4));
+}
+
+watchtower(-33, 33, Math.PI * 0.25);
+watchtower( 33,-33, Math.PI * 0.25);
+mast(-28, -6);
+dish(27, -14, -0.6);
+hangar(1, -6, 10); hangar(1, -13, 10); hangar(1, -20, 10);
+truck(-6, 20, 0.3); truck(-10, 23, 0.25); truck(26, 7, 1.6);
+sandbags(2, 31, 9, 0);
+sandbags(-24, -12, 7, Math.PI/2);
+barrels(-24, -16, 5); barrels(13, 11, 4);
+crates(12, 14); crates(-8, -27);
+gateBarrier(2, 35);
+
+// -- distant terrain ---------------------------------------------------------
+// Ridge lines on the horizon. They cast no shadows and are never approached,
+// so low-poly cones are enough and cost almost nothing.
+for(let i = 0; i < 34; i++){
+  const a = (i / 34) * Math.PI * 2 + rand() * 0.14;
+  const r = 225 + rand() * 140;
+  const h = 34 + rand() * 76;
+  const rad = 26 + rand() * 34;
+  const m = new THREE.Mesh(new THREE.ConeGeometry(rad, h, 7), M.rock);
+  m.position.set(Math.cos(a) * r, h/2 - 4, Math.sin(a) * r);
+  m.rotation.y = rand() * Math.PI;
+  scene.add(m);
+  if(h > 62){
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(rad * 0.34, h * 0.26, 7), M.snow);
+    cap.position.set(m.position.x, h - 4 - h * 0.13, m.position.z);
+    cap.rotation.y = m.rotation.y;
+    scene.add(cap);
+  }
 }
 
 // -- stars (night only) ------------------------------------------------------
@@ -447,6 +672,7 @@ function applyTheme(){
   roofMats.forEach(m => m.color.setHex(t.roof));
   trunkMats.forEach(m => m.color.setHex(t.trunk));
   foliageMats.forEach(m => m.color.setHex(t.foliage));
+  themedMats.forEach(x => x.m.color.setHex(night ? x.night : x.day));
 
   // Lit windows are what makes the night view read as an occupied facility.
   glassMats.forEach(m => {
@@ -470,6 +696,62 @@ function applyTheme(){
 
 document.getElementById("themeBtn").onclick = e => {
   e.preventDefault(); night = !night; applyTheme();
+};
+
+// -- alarm -------------------------------------------------------------------
+// The tone is synthesised in the browser rather than loaded from a file, so the
+// demo needs no audio asset and no network. Browsers refuse to start audio
+// without a user gesture, which is why this is behind a button.
+let audio = null, soundOn = false, lastAlarm = 0;
+const criticalZones = new Set();
+
+function beep(startAt, freqFrom, freqTo, duration){
+  const osc = audio.createOscillator();
+  const gain = audio.createGain();
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(freqFrom, startAt);
+  osc.frequency.linearRampToValueAtTime(freqTo, startAt + duration);
+  // Fade in and out, otherwise the abrupt edges click.
+  gain.gain.setValueAtTime(0.0001, startAt);
+  gain.gain.exponentialRampToValueAtTime(0.18, startAt + 0.04);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+  osc.connect(gain).connect(audio.destination);
+  osc.start(startAt);
+  osc.stop(startAt + duration + 0.02);
+}
+
+function alarm(){
+  if(!soundOn || !audio) return;
+  const now = audio.currentTime;
+  for(let i = 0; i < 3; i++){
+    beep(now + i * 0.42, 660, 990, 0.2);   // rising
+    beep(now + i * 0.42 + 0.2, 990, 660, 0.2);  // falling
+  }
+  lastAlarm = Date.now();
+}
+
+function confirmTone(){
+  // A short soft blip, deliberately nothing like the alarm: it only says the
+  // speakers are live. The alarm itself is reserved for a red zone.
+  const osc = audio.createOscillator(), gain = audio.createGain();
+  const t = audio.currentTime;
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(880, t);
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.05, t + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+  osc.connect(gain).connect(audio.destination);
+  osc.start(t); osc.stop(t + 0.14);
+}
+
+document.getElementById("soundBtn").onclick = e => {
+  e.preventDefault();
+  if(!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+  if(audio.state === "suspended") audio.resume();
+  soundOn = !soundOn;
+  e.target.textContent = soundOn ? "Alarm armed" : "Alarm off";
+  // Armed means waiting. Nothing sounds until a zone actually turns critical.
+  if(soundOn) confirmTone();
 };
 
 // -- picking ----------------------------------------------------------------
@@ -497,12 +779,23 @@ async function poll(){
     document.getElementById("m-crit").textContent = snap.zones_critical;
     document.getElementById("m-corr").textContent = (snap.stats||{}).alerts_combined || 0;
 
+    let anyCritical = false, newCritical = false;
     for(const z of snap.zones){
       const b = buildings[z.zone_id];
       if(!b) continue;
       b.status = z.status; b.risk = z.risk; b.data = z;
       b.body.material.color.setHex(COLOR[z.status] || COLOR.normal);
+
+      if(z.status === "critical"){
+        anyCritical = true;
+        if(!criticalZones.has(z.zone_id)){ criticalZones.add(z.zone_id); newCritical = true; }
+      }else{
+        criticalZones.delete(z.zone_id);
+      }
     }
+    // Sound the alarm the moment a zone turns critical, then repeat every ten
+    // seconds while it stays critical, so it reads as an alarm and not a loop.
+    if(newCritical || (anyCritical && Date.now() - lastAlarm > 10000)) alarm();
     renderAlerts(al.alerts);
     renderZone();
   }catch(err){
@@ -581,6 +874,10 @@ function animate(){
       b.column.material.opacity = 0;
     }
   }
+  // Obstruction lights on the tower and mast: slow, steady, always on.
+  const blink = (Math.sin(t * 1.5) > 0.4) ? 0xff3b30 : 0x5a1d16;
+  for(const b of blinkers) b.material.color.setHex(blink);
+
   controls.update();
   renderer.render(scene, camera);
 }
