@@ -24,6 +24,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -271,7 +272,24 @@ def reset() -> dict:
 
 @app.get("/")
 def dashboard() -> FileResponse:
+    """Analyst view: zones, alerts and the evidence behind each decision."""
     index = ROOT / "dashboard" / "index.html"
     if not index.exists():
         raise HTTPException(404, "Dashboard not found.")
     return FileResponse(index)
+
+
+@app.get("/3d")
+def facility_3d() -> FileResponse:
+    """Facility view: the same twin state rendered as the building layout."""
+    page = ROOT / "dashboard" / "facility3d.html"
+    if not page.exists():
+        raise HTTPException(404, "3D view not found.")
+    return FileResponse(page)
+
+
+# Three.js ships with the repository rather than from a CDN, so the demo does
+# not depend on internet access in the evaluation room.
+_vendor = ROOT / "dashboard" / "vendor"
+if _vendor.exists():
+    app.mount("/vendor", StaticFiles(directory=str(_vendor)), name="vendor")

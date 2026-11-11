@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RG26 — Facility Twin (3D)</title>
+<style>
+  :root{--blue:#0037A4;--ink:#13203a;--muted:#5d6b85;--line:#dde3ee;
+        --ok:#1d8a4e;--warn:#b47400;--crit:#bf2130}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;
+    font:14px/1.5 "Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--ink)}
+  #scene{position:fixed;inset:0}
+  canvas{display:block}
+
+  .panel{position:fixed;background:rgba(255,255,255,.94);border:1px solid var(--line);
+         border-radius:6px;backdrop-filter:blur(6px);box-shadow:0 6px 22px rgba(10,24,56,.14)}
+
+  #top{top:0;left:0;right:0;border-radius:0;border-width:0 0 1px;background:var(--blue);
+       color:#fff;padding:12px 22px;display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+  #top h1{margin:0;font-size:17px;font-weight:700}
+  #top .sub{font-size:11.5px;opacity:.8;margin-top:2px}
+  #top .sp{flex:1}
+  #top .m{text-align:right;line-height:1.2}
+  #top .m b{display:block;font-size:21px}
+  #top .m span{font-size:10px;letter-spacing:.7px;text-transform:uppercase;opacity:.82}
+  #top a{color:#fff;font-size:11.5px;border:1px solid rgba(255,255,255,.45);
+         padding:6px 12px;border-radius:4px;text-decoration:none}
+  #top a:hover{background:rgba(255,255,255,.14)}
+
+  #legend{left:22px;bottom:22px;padding:11px 14px;font-size:12px}
+  #legend div{display:flex;align-items:center;gap:8px;margin:4px 0}
+  .sw{width:13px;height:13px;border-radius:3px;border:1px solid rgba(0,0,0,.15)}
+  #legend .hint{margin-top:9px;padding-top:8px;border-top:1px solid var(--line);
+                color:var(--muted);font-size:11px;max-width:220px;line-height:1.45}
+
+  #zone{right:22px;top:92px;width:310px;padding:0;overflow:hidden}
+  #zone h2{margin:0;padding:12px 16px;border-bottom:1px solid var(--line);font-size:12px;
+           text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  #zone .body{padding:14px 16px;max-height:62vh;overflow-y:auto}
+  #zone .zname{font-size:16px;font-weight:700}
+  #zone .rk{display:flex;align-items:baseline;gap:9px;margin:8px 0 12px}
+  #zone .rk b{font-size:31px;line-height:1}
+  .tag{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+       padding:3px 8px;border-radius:3px}
+  .tag.normal{background:#e8f6ee;color:var(--ok)}
+  .tag.elevated{background:#f7e4c0;color:var(--warn)}
+  .tag.critical{background:#f8d2d6;color:var(--crit)}
+  .bar{display:grid;grid-template-columns:56px 1fr 36px;align-items:center;gap:8px;
+       font-size:11px;color:var(--muted);margin:5px 0}
+  .track{height:6px;background:#e7ebf3;border-radius:3px;overflow:hidden}
+  .fill{height:100%;transition:width .4s}
+  .fill.c{background:var(--blue)} .fill.p{background:#7a4fc0}
+  .corr{margin:11px 0;padding:9px 11px;background:#fdeaec;border-left:3px solid var(--crit);
+        font-size:11.5px;color:#8d1a26;line-height:1.45;font-weight:600}
+  .evh{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);
+       font-weight:700;margin:13px 0 5px}
+  .ev{font-size:12px;padding:6px 0;border-bottom:1px solid #eef1f7;display:flex;
+      justify-content:space-between;gap:10px}
+  .ev span{color:var(--muted);white-space:nowrap}
+  .dim{color:var(--muted);font-size:12px}
+
+  #feed{left:22px;top:92px;width:300px;padding:0;overflow:hidden}
+  #feed h2{margin:0;padding:12px 16px;border-bottom:1px solid var(--line);font-size:12px;
+           text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  #feed .list{max-height:44vh;overflow-y:auto}
+  .al{padding:9px 16px;border-bottom:1px solid var(--line);font-size:12px;cursor:pointer}
+  .al:hover{background:#f7f9fd}
+  .al.combined{background:#fdeaec}
+  .al .t{font-weight:600}
+  .al .m{color:var(--muted);font-size:10.5px;margin-top:2px}
+  #offline{position:fixed;inset:auto 0 0 0;background:var(--crit);color:#fff;
+           text-align:center;padding:7px;font-size:12px;display:none}
+</style>
+</head>
+<body>
+<div id="scene"></div>
+
+<div class="panel" id="top">
+  <div>
+    <h1>Intelligent Defence System &mdash; Facility Twin</h1>
+    <div class="sub">Group RG26 &middot; drag to orbit &middot; scroll to zoom &middot; click a building</div>
+  </div>
+  <div class="sp"></div>
+  <div class="m"><b id="m-risk">0</b><span>Facility risk</span></div>
+  <div class="m"><b id="m-crit">0</b><span>Critical</span></div>
+  <div class="m"><b id="m-corr">0</b><span>Correlated</span></div>
+  <a href="#" id="themeBtn">Night view</a>
+  <a href="/">Analyst view</a>
+</div>
+
+<div class="panel" id="feed">
+  <h2>Live alerts</h2>
+  <div class="list" id="alist"><div class="al dim">No alerts.</div></div>
+</div>
+
+<div class="panel" id="zone">
+  <h2>Zone detail</h2>
+  <div class="body" id="zbody"><div class="dim">Click a building to inspect it.</div></div>
+</div>
+
+<div class="panel" id="legend">
+  <div><span class="sw" style="background:#cfd8e8"></span> Normal</div>
+  <div><span class="sw" style="background:#e8a33d"></span> Elevated &mdash; one domain active</div>
+  <div><span class="sw" style="background:#d2392f"></span> Critical &mdash; beacon lit</div>
+  <div class="hint">A red beacon means network threats and physical anomalies were
+    seen in the same zone inside the correlation window.</div>
+</div>
+
+<div id="offline">Backend offline &mdash; start the API, then reload.</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// Facility layout. Each entry maps a backend zone_id onto a building.
+// ---------------------------------------------------------------------------
+const LAYOUT = [
+  {id:"perimeter",   label:"Perimeter & Main Gate", x:  2, z: 27, w:11, h:3.2, d:5},
+  {id:"server_room", label:"Server Room",           x:-19, z:  4, w:12, h:7.0, d:10},
+  {id:"control_room",label:"Command & Control",     x: 17, z: -7, w:11, h:8.5, d:9},
+  {id:"armoury",     label:"Armoury & Storage",     x:-15, z:-23, w: 9, h:5.0, d:8},
+  {id:"utility",     label:"Power & Utility",       x: 20, z: 19, w: 8, h:4.2, d:7},
+];
+
+// Two palettes. Night is not only darker: a facility at night is when an
+// intruder is most likely to move, and the beacons read far more clearly.
+const THEME = {
+  day: {
+    zone:   {normal:0xcfd8e8, elevated:0xe8a33d, critical:0xd2392f},
+    grass:  0x7fa05f, pad:0x9aa0a6, fence:0x7c838c, roof:0x6f7884,
+    glass:  0x2d3f5c, glassGlow:0x000000,
+    foliage:0x4f7a3c, trunk:0x5c4330,
+    fog:    0xcfe0f3, fogNear:70, fogFar:190,
+    hemi:   {sky:0xdceaff, ground:0x6f8a5a, power:0.85},
+    sun:    {color:0xffffff, power:0.75},
+    lamp:   0,
+  },
+  night: {
+    zone:   {normal:0x46506a, elevated:0xb8771f, critical:0xa51d26},
+    grass:  0x24331f, pad:0x343a42, fence:0x3a4048, roof:0x2b313a,
+    glass:  0x1a2334, glassGlow:0xffcf6b,
+    foliage:0x1f3a22, trunk:0x2a2018,
+    fog:    0x0d1526, fogNear:55, fogFar:165,
+    hemi:   {sky:0x2a3b63, ground:0x11170f, power:0.30},
+    sun:    {color:0x9db7e8, power:0.14},
+    lamp:   1.5,
+  },
+};
+
+let night = false;
+let COLOR = THEME.day.zone;
+
+// Collected so the theme switch can recolour everything in one pass.
+const glassMats = [], foliageMats = [], trunkMats = [], roofMats = [];
+const lampLights = [];
+let stars = null;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(THEME.day.fog, THEME.day.fogNear, THEME.day.fogFar);
+scene.background = skyTexture(false);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 600);
+camera.position.set(50, 42, 64);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.getElementById("scene").appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.maxPolarAngle = Math.PI/2 - 0.04;   // never go under the ground
+controls.minDistance = 20;
+controls.maxDistance = 140;
+controls.target.set(0, 2, 0);
+
+// -- lighting ---------------------------------------------------------------
+const hemi = new THREE.HemisphereLight(
+  THEME.day.hemi.sky, THEME.day.hemi.ground, THEME.day.hemi.power);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+sun.position.set(45, 60, 28);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, {left:-70, right:70, top:70, bottom:-70, far:200});
+scene.add(sun);
+
+function skyTexture(isNight){
+  const c = document.createElement("canvas");
+  c.width = 2; c.height = 256;
+  const ctx = c.getContext("2d");
+  const g = ctx.createLinearGradient(0, 0, 0, 256);
+  if(isNight){
+    g.addColorStop(0, "#060a18"); g.addColorStop(0.6, "#121d38");
+    g.addColorStop(1, "#27354f");
+  }else{
+    g.addColorStop(0, "#5b8fd4"); g.addColorStop(0.55, "#a8c8ec");
+    g.addColorStop(1, "#dfeaf6");
+  }
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 2, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.LinearFilter;
+  return t;
+}
+
+// -- ground, pad and fence --------------------------------------------------
+const grass = new THREE.Mesh(
+  new THREE.PlaneGeometry(260, 260),
+  new THREE.MeshLambertMaterial({color:0x7fa05f})
+);
+grass.rotation.x = -Math.PI/2;
+grass.receiveShadow = true;
+scene.add(grass);
+
+const pad = new THREE.Mesh(
+  new THREE.PlaneGeometry(74, 74),
+  new THREE.MeshLambertMaterial({color:0x9aa0a6})
+);
+pad.rotation.x = -Math.PI/2;
+pad.position.y = 0.02;
+pad.receiveShadow = true;
+scene.add(pad);
+
+const fenceMat = new THREE.MeshLambertMaterial({color:THEME.day.fence});
+
+(function fence(){
+  const mat = fenceMat;
+  const half = 37, postGeo = new THREE.BoxGeometry(0.4, 3, 0.4);
+  for(let i = -half; i <= half; i += 4.5){
+    for(const [x, z] of [[i, -half], [i, half], [-half, i], [half, i]]){
+      const p = new THREE.Mesh(postGeo, mat);
+      p.position.set(x, 1.5, z); p.castShadow = true; scene.add(p);
+    }
+  }
+  const railGeo = new THREE.BoxGeometry(half*2, 0.14, 0.14);
+  for(const y of [1.2, 2.5]){
+    for(const [rx, rz, ry] of [[0,-half,0],[0,half,0],[-half,0,Math.PI/2],[half,0,Math.PI/2]]){
+      const r = new THREE.Mesh(railGeo, mat);
+      r.position.set(rx, y, rz); r.rotation.y = ry; scene.add(r);
+    }
+  }
+})();
+
+// -- landscaping -------------------------------------------------------------
+// A fixed seed keeps the grounds identical on every run, so the demo looks the
+// same each time it is rehearsed and recorded.
+let seed = 20261114;
+function rand(){ seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+
+function tree(x, z, s){
+  const g = new THREE.Group();
+  const trunkMat = new THREE.MeshLambertMaterial({color:THEME.day.trunk});
+  const foliMat  = new THREE.MeshLambertMaterial({color:THEME.day.foliage});
+  trunkMats.push(trunkMat); foliageMats.push(foliMat);
+
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28*s, 0.38*s, 2.6*s, 7), trunkMat);
+  trunk.position.y = 1.3*s; trunk.castShadow = true;
+  g.add(trunk);
+
+  for(let i = 0; i < 3; i++){
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry((2.1 - i*0.5)*s, (2.6 - i*0.35)*s, 8), foliMat
+    );
+    cone.position.y = (3.1 + i*1.35) * s;
+    cone.castShadow = true;
+    g.add(cone);
+  }
+  g.position.set(x, 0, z);
+  g.rotation.y = rand() * Math.PI;
+  scene.add(g);
+}
+
+function shrub(x, z, s){
+  const mat = new THREE.MeshLambertMaterial({color:THEME.day.foliage});
+  foliageMats.push(mat);
+  const m = new THREE.Mesh(new THREE.SphereGeometry(s, 9, 7), mat);
+  m.position.set(x, s*0.72, z);
+  m.scale.y = 0.68;
+  m.castShadow = true;
+  scene.add(m);
+}
+
+// Tree line outside the fence, so the facility sits in a landscape.
+for(let i = 0; i < 70; i++){
+  const a = rand() * Math.PI * 2;
+  const r = 46 + rand() * 62;
+  const x = Math.cos(a) * r, z = Math.sin(a) * r;
+  if(Math.abs(x) < 41 && Math.abs(z) < 41) continue;
+  tree(x, z, 0.85 + rand() * 0.75);
+}
+// A few inside the wire, in the corners the buildings do not use.
+for(const [x, z] of [[-31, 30], [31, 31], [-32, -32], [30, -30], [-28, 14], [29, 4]]){
+  tree(x, z, 0.8 + rand() * 0.4);
+}
+// Shrubs along the inner edge of the pad.
+for(let i = 0; i < 26; i++){
+  const a = rand() * Math.PI * 2, r = 25 + rand() * 9;
+  shrub(Math.cos(a) * r, Math.sin(a) * r, 0.65 + rand() * 0.6);
+}
+
+// -- lamp posts (dark by day, lit at night) ---------------------------------
+for(const [x, z] of [[-30, 30], [30, 30], [-30, -30], [30, -30], [0, 32], [0, -32]]){
+  const poleMat = new THREE.MeshLambertMaterial({color:0x4a515b});
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 8, 8), poleMat);
+  pole.position.set(x, 4, z); pole.castShadow = true;
+  scene.add(pole);
+
+  const headMat = new THREE.MeshBasicMaterial({color:0x5a6068});
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 10), headMat);
+  head.position.set(x, 8.2, z);
+  scene.add(head);
+
+  const light = new THREE.PointLight(0xffc877, 0, 34);
+  light.position.set(x, 8.0, z);
+  scene.add(light);
+  lampLights.push({light, head});
+}
+
+// -- stars (night only) ------------------------------------------------------
+(function makeStars(){
+  const pos = [];
+  for(let i = 0; i < 700; i++){
+    const th = rand() * Math.PI * 2;
+    const ph = Math.acos(rand() * 0.92);        // keep them above the horizon
+    const r = 250;
+    pos.push(Math.sin(ph) * Math.cos(th) * r, Math.cos(ph) * r,
+             Math.sin(ph) * Math.sin(th) * r);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  stars = new THREE.Points(geo, new THREE.PointsMaterial({
+    color:0xffffff, size:1.5, sizeAttenuation:false, transparent:true, opacity:0.9
+  }));
+  stars.visible = false;
+  scene.add(stars);
+})();
+
+// -- buildings --------------------------------------------------------------
+function labelSprite(text){
+  const c = document.createElement("canvas");
+  const ctx = c.getContext("2d");
+  c.width = 512; c.height = 110;
+  ctx.font = "bold 40px Helvetica, Arial, sans-serif";
+  const w = ctx.measureText(text).width + 46;
+  ctx.fillStyle = "rgba(255,255,255,.93)";
+  roundRect(ctx, (512-w)/2, 16, w, 62, 10); ctx.fill();
+  ctx.strokeStyle = "#0037A4"; ctx.lineWidth = 3;
+  roundRect(ctx, (512-w)/2, 16, w, 62, 10); ctx.stroke();
+  ctx.fillStyle = "#13203a";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "bold 36px Helvetica, Arial, sans-serif";
+  ctx.fillText(text, 256, 48);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(c), depthTest: false, transparent: true
+  }));
+  sp.scale.set(11.5, 2.5, 1);
+  return sp;
+}
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath(); ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath();
+}
+
+const buildings = {};
+for(const z of LAYOUT){
+  const group = new THREE.Group();
+  group.position.set(z.x, 0, z.z);
+
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(z.w, z.h, z.d),
+    new THREE.MeshLambertMaterial({color: COLOR.normal})
+  );
+  body.position.y = z.h/2;
+  body.castShadow = true; body.receiveShadow = true;
+  body.userData.zoneId = z.id;
+  group.add(body);
+
+  const roofMat = new THREE.MeshLambertMaterial({color:THEME.day.roof});
+  roofMats.push(roofMat);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(z.w + 0.5, 0.4, z.d + 0.5), roofMat);
+  roof.position.y = z.h + 0.2;
+  roof.castShadow = true;
+  group.add(roof);
+
+  // Window bands, so the boxes read as buildings rather than blocks.
+  const glass = new THREE.MeshLambertMaterial({color:THEME.day.glass});
+  glassMats.push(glass);
+  for(let y = 1.6; y < z.h - 0.8; y += 2.2){
+    const band = new THREE.Mesh(new THREE.BoxGeometry(z.w + 0.08, 0.75, z.d + 0.08), glass);
+    band.position.y = y;
+    group.add(band);
+  }
+
+  // Beacon: dark when the zone is quiet, lit and pulsing when it is critical.
+  const beacon = new THREE.Mesh(
+    new THREE.SphereGeometry(0.72, 20, 16),
+    new THREE.MeshBasicMaterial({color:0x4a4f57})
+  );
+  beacon.position.y = z.h + 1.1;
+  group.add(beacon);
+
+  const beaconLight = new THREE.PointLight(0xff2d2d, 0, 26);
+  beaconLight.position.y = z.h + 1.1;
+  group.add(beaconLight);
+
+  // Column of light above a critical zone, visible from any camera angle.
+  const column = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.5, 1.5, 26, 24, 1, true),
+    new THREE.MeshBasicMaterial({color:0xff3b30, transparent:true, opacity:0,
+                                 side:THREE.DoubleSide, depthWrite:false})
+  );
+  column.position.y = z.h + 13;
+  group.add(column);
+
+  const label = labelSprite(z.label);
+  label.position.y = z.h + 5.4;
+  group.add(label);
+
+  scene.add(group);
+  buildings[z.id] = {group, body, beacon, beaconLight, column, spec:z, status:"normal", risk:0};
+}
+
+// -- day / night -------------------------------------------------------------
+function applyTheme(){
+  const t = night ? THEME.night : THEME.day;
+  COLOR = t.zone;
+
+  scene.background = skyTexture(night);
+  scene.fog.color.setHex(t.fog);
+  scene.fog.near = t.fogNear;
+  scene.fog.far = t.fogFar;
+
+  hemi.color.setHex(t.hemi.sky);
+  hemi.groundColor.setHex(t.hemi.ground);
+  hemi.intensity = t.hemi.power;
+  sun.color.setHex(t.sun.color);
+  sun.intensity = t.sun.power;
+
+  grass.material.color.setHex(t.grass);
+  pad.material.color.setHex(t.pad);
+  fenceMat.color.setHex(t.fence);
+  roofMats.forEach(m => m.color.setHex(t.roof));
+  trunkMats.forEach(m => m.color.setHex(t.trunk));
+  foliageMats.forEach(m => m.color.setHex(t.foliage));
+
+  // Lit windows are what makes the night view read as an occupied facility.
+  glassMats.forEach(m => {
+    m.color.setHex(t.glass);
+    m.emissive.setHex(t.glassGlow);
+    m.emissiveIntensity = night ? 0.85 : 0;
+  });
+
+  lampLights.forEach(({light, head}) => {
+    light.intensity = t.lamp;
+    head.material.color.setHex(night ? 0xffd79a : 0x5a6068);
+  });
+
+  stars.visible = night;
+
+  for(const b of Object.values(buildings)){
+    b.body.material.color.setHex(COLOR[b.status] || COLOR.normal);
+  }
+  document.getElementById("themeBtn").textContent = night ? "Day view" : "Night view";
+}
+
+document.getElementById("themeBtn").onclick = e => {
+  e.preventDefault(); night = !night; applyTheme();
+};
+
+// -- picking ----------------------------------------------------------------
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let selected = null, state = null;
+
+renderer.domElement.addEventListener("pointerdown", e => {
+  mouse.x = (e.clientX/innerWidth)*2 - 1;
+  mouse.y = -(e.clientY/innerHeight)*2 + 1;
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects(Object.values(buildings).map(b => b.body))[0];
+  if(hit){ selected = hit.object.userData.zoneId; renderZone(); }
+});
+
+// -- data -------------------------------------------------------------------
+async function poll(){
+  try{
+    const [snap, al] = await Promise.all([
+      fetch("/api/twin").then(r => r.json()),
+      fetch("/api/alerts?limit=25").then(r => r.json()),
+    ]);
+    document.getElementById("offline").style.display = "none";
+    state = snap;
+    document.getElementById("m-risk").textContent = snap.facility_risk;
+    document.getElementById("m-crit").textContent = snap.zones_critical;
+    document.getElementById("m-corr").textContent = (snap.stats||{}).alerts_combined || 0;
+
+    for(const z of snap.zones){
+      const b = buildings[z.zone_id];
+      if(!b) continue;
+      b.status = z.status; b.risk = z.risk; b.data = z;
+      b.body.material.color.setHex(COLOR[z.status] || COLOR.normal);
+    }
+    renderAlerts(al.alerts);
+    renderZone();
+  }catch(err){
+    document.getElementById("offline").style.display = "block";
+  }
+}
+
+function renderAlerts(list){
+  const box = document.getElementById("alist");
+  if(!list.length){ box.innerHTML = '<div class="al dim">No alerts.</div>'; return; }
+  box.innerHTML = list.map(a => `
+    <div class="al ${a.kind === 'combined' ? 'combined' : ''}" data-z="${a.zone_id}">
+      <div class="t">${a.title.replace(/[<>]/g, "")}</div>
+      <div class="m">${new Date(a.ts*1000).toLocaleTimeString()} &middot; risk ${a.risk}</div>
+    </div>`).join("");
+  box.querySelectorAll(".al[data-z]").forEach(el => el.onclick = () => {
+    selected = el.dataset.z; renderZone(); focusOn(selected);
+  });
+}
+
+function renderZone(){
+  const el = document.getElementById("zbody");
+  if(!selected || !buildings[selected] || !buildings[selected].data){
+    el.innerHTML = '<div class="dim">Click a building to inspect it.</div>';
+    return;
+  }
+  const z = buildings[selected].data;
+  el.innerHTML = `
+    <div class="zname">${z.name}</div>
+    <div class="dim">${z.asset_count} assets &middot; criticality ${z.criticality}</div>
+    <div class="rk"><b>${z.risk}</b><span class="tag ${z.status}">${z.status}</span></div>
+    <div class="bar"><span>Cyber</span><div class="track">
+      <div class="fill c" style="width:${(z.cyber_score*100).toFixed(0)}%"></div></div>
+      <span>${(z.cyber_score*100).toFixed(0)}%</span></div>
+    <div class="bar"><span>Physical</span><div class="track">
+      <div class="fill p" style="width:${(z.physical_score*100).toFixed(0)}%"></div></div>
+      <span>${(z.physical_score*100).toFixed(0)}%</span></div>
+    ${z.correlated ? '<div class="corr">Correlated physical and cyber activity inside the '
+      + state.window_seconds + 's window.</div>' : ''}
+    <div class="evh">Recent events</div>
+    ${z.recent_events.length ? z.recent_events.map(e => `
+      <div class="ev"><div>${e.label.replace(/_/g," ")}</div>
+      <span>${e.domain} &middot; ${e.age}s ago</span></div>`).join("")
+      : '<div class="dim">Nothing in the window.</div>'}`;
+}
+
+function focusOn(zoneId){
+  const b = buildings[zoneId];
+  if(b) controls.target.set(b.spec.x, b.spec.h/2, b.spec.z);
+}
+
+// -- animation --------------------------------------------------------------
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  const pulse = (Math.sin(t*4) + 1) / 2;   // 0..1
+
+  for(const b of Object.values(buildings)){
+    if(b.status === "critical"){
+      b.beacon.material.color.setHex(0xff3b30);
+      b.beacon.scale.setScalar(1 + pulse*0.35);
+      b.beaconLight.color.setHex(0xff2d2d);
+      b.beaconLight.intensity = 1.2 + pulse*2.6;
+      b.column.material.opacity = 0.10 + pulse*0.16;
+    }else if(b.status === "elevated"){
+      b.beacon.material.color.setHex(0xe8a33d);
+      b.beacon.scale.setScalar(1 + pulse*0.12);
+      b.beaconLight.color.setHex(0xffa83d);
+      b.beaconLight.intensity = 0.5 + pulse*0.8;
+      b.column.material.opacity = 0;
+    }else{
+      b.beacon.material.color.setHex(0x4a4f57);
+      b.beacon.scale.setScalar(1);
+      b.beaconLight.intensity = 0;
+      b.column.material.opacity = 0;
+    }
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+addEventListener("resize", () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+poll();
+setInterval(poll, 2000);
+animate();
+</script>
+</body>
+</html>
