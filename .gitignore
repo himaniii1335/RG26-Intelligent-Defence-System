@@ -3,3 +3,6 @@ KDDTest+.txt
 .ipynb_checkpoints/
 __pycache__/
 .venv/
+ml/artifacts/*.joblib
+backend/ids.db
+*.log

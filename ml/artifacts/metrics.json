@@ -1,0 +1,92 @@
+{
+  "generated_at": "2026-11-11 14:51:27",
+  "dataset": {
+    "train_rows": 125973,
+    "test_rows": 22544,
+    "unseen_attack_types": [
+      "apache2",
+      "httptunnel",
+      "mailbomb",
+      "mscan",
+      "named",
+      "processtable",
+      "ps",
+      "saint",
+      "sendmail",
+      "snmpgetattack",
+      "snmpguess",
+      "sqlattack",
+      "udpstorm",
+      "worm",
+      "xlock",
+      "xsnoop",
+      "xterm"
+    ]
+  },
+  "random_forest_multiclass": {
+    "accuracy": 0.751375088715401,
+    "macro_f1": 0.523350458560496
+  },
+  "detection": {
+    "rf_only": {
+      "accuracy": 0.7642388218594748,
+      "precision": 0.9664929262844378,
+      "recall": 0.6068729057897607,
+      "f1": 0.7455842228710928,
+      "false_positive_rate": 0.027803521779425393
+    },
+    "hybrid": {
+      "accuracy": 0.8150727466288148,
+      "precision": 0.928232502965599,
+      "recall": 0.7317073170731707,
+      "f1": 0.8183363109503682,
+      "false_positive_rate": 0.07476058078467716
+    }
+  },
+  "per_family": {
+    "DoS": {
+      "support": 7458,
+      "rf_only": 0.7662912308930008,
+      "hybrid": 0.8816036470903728
+    },
+    "Probe": {
+      "support": 2421,
+      "rf_only": 0.7575382073523338,
+      "hybrid": 0.9653035935563816
+    },
+    "R2L": {
+      "support": 2754,
+      "rf_only": 0.07879448075526507,
+      "hybrid": 0.12636165577342048
+    },
+    "U2R": {
+      "support": 200,
+      "rf_only": 0.11,
+      "hybrid": 0.65
+    }
+  },
+  "unseen_attacks": {
+    "flows": 3750,
+    "rf_only": 0.20106666666666667,
+    "hybrid": 0.5893333333333334
+  },
+  "top_features": {
+    "log_src_bytes": 0.1084,
+    "dst_host_srv_count": 0.0907,
+    "log_dst_bytes": 0.0822,
+    "duration": 0.0523,
+    "dst_host_diff_srv_rate": 0.0516,
+    "service_ftp_data": 0.0487,
+    "serror_rate": 0.046,
+    "srv_count": 0.0416,
+    "num_compromised": 0.0404,
+    "logged_in": 0.0386,
+    "count": 0.0355,
+    "dst_host_same_src_port_rate": 0.0344,
+    "dst_host_same_srv_rate": 0.0343,
+    "total_error_rate": 0.0311,
+    "hot": 0.0293
+  },
+  "isolation_forest_contamination": 0.05,
+  "training_seconds": 98.0
+}

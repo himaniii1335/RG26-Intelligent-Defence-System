@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RG26 Intelligent Defence System</title>
+<style>
+  :root{
+    --blue:#0037A4; --ink:#13203a; --muted:#5d6b85; --line:#dde3ee;
+    --bg:#f4f6fb; --card:#ffffff;
+    --ok:#1d8a4e; --ok-bg:#e8f6ee;
+    --warn:#b47400; --warn-bg:#fdf3e0;
+    --crit:#bf2130; --crit-bg:#fdeaec;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.5 "Helvetica Neue",Helvetica,Arial,sans-serif}
+  header{background:var(--blue);color:#fff;padding:18px 28px;
+         display:flex;align-items:center;gap:28px;flex-wrap:wrap}
+  header h1{margin:0;font-size:19px;letter-spacing:.2px;font-weight:700}
+  header .sub{font-size:12px;opacity:.78;margin-top:3px}
+  .spacer{flex:1}
+  .hstat{text-align:right;line-height:1.25}
+  .hstat b{display:block;font-size:22px}
+  .hstat span{font-size:11px;text-transform:uppercase;letter-spacing:.7px;opacity:.8}
+
+  main{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);
+       gap:20px;padding:20px 28px 40px;max-width:1500px;margin:0 auto}
+  @media(max-width:1000px){main{grid-template-columns:1fr;padding:16px}}
+
+  section{background:var(--card);border:1px solid var(--line);border-radius:6px}
+  section > h2{margin:0;padding:13px 18px;border-bottom:1px solid var(--line);
+               font-size:12px;text-transform:uppercase;letter-spacing:.9px;
+               color:var(--muted);font-weight:700;display:flex;
+               justify-content:space-between;align-items:center}
+
+  .zones{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+         gap:14px;padding:18px}
+  .zone{border:1px solid var(--line);border-left-width:5px;border-radius:5px;
+        padding:13px 15px;background:#fff;transition:border-color .25s}
+  .zone.normal{border-left-color:var(--ok)}
+  .zone.elevated{border-left-color:var(--warn);background:var(--warn-bg)}
+  .zone.critical{border-left-color:var(--crit);background:var(--crit-bg)}
+  .zone h3{margin:0 0 2px;font-size:14.5px}
+  .zone .assets{font-size:11.5px;color:var(--muted)}
+  .riskline{display:flex;align-items:baseline;gap:8px;margin:9px 0 7px}
+  .riskline b{font-size:27px;line-height:1}
+  .tag{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+       padding:3px 7px;border-radius:3px}
+  .tag.normal{background:var(--ok-bg);color:var(--ok)}
+  .tag.elevated{background:#f7e4c0;color:var(--warn)}
+  .tag.critical{background:#f8d2d6;color:var(--crit)}
+  .bars{display:grid;gap:5px;margin-top:9px}
+  .bar{display:grid;grid-template-columns:52px 1fr 34px;align-items:center;
+       gap:7px;font-size:11px;color:var(--muted)}
+  .track{height:6px;background:#e7ebf3;border-radius:3px;overflow:hidden}
+  .fill{height:100%;border-radius:3px;transition:width .35s}
+  .fill.cyber{background:var(--blue)}
+  .fill.phys{background:#7a4fc0}
+  .corr{margin-top:10px;font-size:11px;font-weight:700;color:var(--crit);
+        letter-spacing:.4px}
+
+  .alerts{max-height:620px;overflow-y:auto}
+  .alert{border-bottom:1px solid var(--line);padding:12px 18px;cursor:pointer}
+  .alert:hover{background:#fafbfe}
+  .alert .top{display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .alert .title{font-size:13.5px;font-weight:600}
+  .alert .meta{font-size:11px;color:var(--muted);margin-top:3px}
+  .alert .detail{font-size:12.5px;color:#36445e;margin-top:5px}
+  .pill{font-size:9.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+        padding:3px 7px;border-radius:3px;white-space:nowrap}
+  .pill.info{background:#e9eef9;color:var(--blue)}
+  .pill.warning{background:#f7e4c0;color:var(--warn)}
+  .pill.critical{background:#f8d2d6;color:var(--crit)}
+  .alert.combined{background:var(--crit-bg)}
+  .alert.combined .title::before{content:"⬥ ";color:var(--crit)}
+
+  .evidence{margin-top:10px;border-top:1px dashed var(--line);padding-top:9px;
+            font-size:12px}
+  .evidence table{width:100%;border-collapse:collapse;margin-top:6px}
+  .evidence td{padding:3px 0;border-bottom:1px solid #eef1f7}
+  .evidence td:last-child{text-align:right;font-variant-numeric:tabular-nums;
+                          color:var(--muted)}
+  .evidence .why{background:#f4f6fb;border-left:3px solid var(--blue);
+                 padding:8px 10px;margin-top:8px;color:#36445e;line-height:1.45}
+  .ev-h{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;
+        color:var(--muted);font-weight:700;margin-top:9px}
+
+  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));
+         gap:1px;background:var(--line)}
+  .strip div{background:#fff;padding:12px 14px}
+  .strip b{display:block;font-size:19px}
+  .strip span{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;
+              color:var(--muted)}
+  .empty{padding:34px 18px;text-align:center;color:var(--muted);font-size:13px}
+  button{font:inherit;font-size:11.5px;border:1px solid var(--line);background:#fff;
+         color:var(--muted);padding:5px 11px;border-radius:4px;cursor:pointer}
+  button:hover{border-color:var(--blue);color:var(--blue)}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;
+       background:#7ee0a0;margin-right:6px;vertical-align:middle}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Intelligent Defence System &mdash; Facility Monitor</h1>
+    <div class="sub">Group RG26 &middot; Digital twin with hybrid cyber &amp; physical threat correlation</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="hstat"><b id="h-risk">0</b><span>Facility risk</span></div>
+  <div class="hstat"><b id="h-crit">0</b><span>Critical zones</span></div>
+  <div class="hstat"><b id="h-comb">0</b><span>Correlated alerts</span></div>
+  <div class="hstat"><b id="h-live"><span class="dot"></span>live</b><span id="h-time">&ndash;</span></div>
+</header>
+
+<main>
+  <div>
+    <section>
+      <h2>Facility zones <span id="z-window"></span></h2>
+      <div class="zones" id="zones"><div class="empty">Connecting to backend&hellip;</div></div>
+    </section>
+
+    <section style="margin-top:20px">
+      <h2>Event throughput</h2>
+      <div class="strip" id="stats"></div>
+    </section>
+
+    <section style="margin-top:20px">
+      <h2>Detection model <span id="m-when"></span></h2>
+      <div id="model"><div class="empty">Model metrics not loaded.</div></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>Alerts <button id="reset">Reset</button></h2>
+    <div class="alerts" id="alerts"><div class="empty">No alerts.</div></div>
+  </section>
+</main>
+
+<script>
+const API = "";
+let openAlert = null;
+
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct = v => (v * 100).toFixed(0);
+
+async function get(path){
+  const r = await fetch(API + path);
+  if(!r.ok) throw new Error(path + " -> " + r.status);
+  return r.json();
+}
+
+function renderZones(snap){
+  document.getElementById("h-risk").textContent = snap.facility_risk;
+  document.getElementById("h-crit").textContent = snap.zones_critical;
+  document.getElementById("z-window").textContent =
+    "correlation window " + snap.window_seconds + "s";
+  document.getElementById("h-time").textContent =
+    new Date(snap.generated_at * 1000).toLocaleTimeString();
+
+  document.getElementById("zones").innerHTML = snap.zones.map(z => `
+    <div class="zone ${z.status}">
+      <h3>${esc(z.name)}</h3>
+      <div class="assets">${z.asset_count} assets &middot; criticality ${z.criticality}</div>
+      <div class="riskline"><b>${z.risk}</b><span class="tag ${z.status}">${z.status}</span></div>
+      <div class="bars">
+        <div class="bar"><span>Cyber</span>
+          <div class="track"><div class="fill cyber" style="width:${pct(z.cyber_score)}%"></div></div>
+          <span>${pct(z.cyber_score)}%</span></div>
+        <div class="bar"><span>Physical</span>
+          <div class="track"><div class="fill phys" style="width:${pct(z.physical_score)}%"></div></div>
+          <span>${pct(z.physical_score)}%</span></div>
+      </div>
+      ${z.correlated ? '<div class="corr">⬥ CORRELATED PHYSICAL + CYBER ACTIVITY</div>' : ''}
+    </div>`).join("");
+
+  const s = snap.stats || {};
+  document.getElementById("h-comb").textContent = s.alerts_combined || 0;
+  document.getElementById("stats").innerHTML = [
+    ["Events", s.events_total], ["Network", s.events_cyber],
+    ["Sensor", s.events_physical], ["Threats", s.threats_detected],
+    ["Alerts", s.alerts_total], ["Correlated", s.alerts_combined],
+  ].map(([k, v]) => `<div><b>${v || 0}</b><span>${k}</span></div>`).join("");
+}
+
+function evidenceHtml(a){
+  const e = a.evidence || {};
+  let h = '<div class="evidence">';
+  if(e.top_features && e.top_features.length){
+    h += '<div class="ev-h">Features that drove this decision</div><table>' +
+      e.top_features.map(f =>
+        `<tr><td>${esc(f.feature)}</td><td>${f.value}</td></tr>`).join("") +
+      '</table>';
+  }
+  if(e.rf_probabilities){
+    h += '<div class="ev-h">Classifier output</div><table>' +
+      Object.entries(e.rf_probabilities).filter(([, p]) => p > 0.001)
+        .sort((x, y) => y[1] - x[1])
+        .map(([c, p]) => `<tr><td>${esc(c)}</td><td>${pct(p)}%</td></tr>`).join("") +
+      '</table>';
+  }
+  if(e.anomaly_score !== undefined){
+    h += `<div class="ev-h">Isolation Forest score</div><table><tr><td>decision function</td>
+          <td>${e.anomaly_score}</td></tr></table>`;
+  }
+  if(e.rule){
+    h += `<div class="ev-h">Rule triggered</div><table><tr><td>${esc(e.rule)}</td>
+          <td>${esc(e.event && e.event.badge_id || "")}</td></tr></table>`;
+  }
+  if(e.cyber_score !== undefined){
+    h += '<div class="ev-h">Correlated scores</div><table>' +
+      `<tr><td>cyber</td><td>${pct(e.cyber_score)}%</td></tr>` +
+      `<tr><td>physical</td><td>${pct(e.physical_score)}%</td></tr></table>`;
+  }
+  if(e.reason) h += `<div class="why">${esc(e.reason)}</div>`;
+  return h + "</div>";
+}
+
+function renderAlerts(list){
+  const box = document.getElementById("alerts");
+  if(!list.length){ box.innerHTML = '<div class="empty">No alerts.</div>'; return; }
+  box.innerHTML = list.map(a => `
+    <div class="alert ${a.kind === 'combined' ? 'combined' : ''}" data-id="${a.id}">
+      <div class="top">
+        <div class="title">${esc(a.title)}</div>
+        <span class="pill ${a.severity}">${a.severity}</span>
+      </div>
+      <div class="meta">${new Date(a.ts * 1000).toLocaleTimeString()}
+        &middot; ${esc(a.zone_id)} &middot; risk ${a.risk}</div>
+      <div class="detail">${esc(a.detail)}</div>
+      ${openAlert === a.id ? evidenceHtml(a) : ''}
+    </div>`).join("");
+
+  box.querySelectorAll(".alert").forEach(el => el.onclick = () => {
+    const id = Number(el.dataset.id);
+    openAlert = openAlert === id ? null : id;
+    renderAlerts(list);
+  });
+}
+
+function renderModel(m){
+  const d = m.detection, u = m.unseen_attacks;
+  const row = (label, a, b) => `<tr><td>${label}</td><td>${a}</td><td>${b}</td></tr>`;
+  document.getElementById("m-when").textContent = m.generated_at;
+  document.getElementById("model").innerHTML = `
+    <div class="evidence" style="margin:0;padding:14px 18px;border:0">
+      <table>
+        <tr><td><b>Attack detection</b></td><td><b>RF only</b></td><td><b>Hybrid</b></td></tr>
+        ${row("Recall", pct(d.rf_only.recall) + "%", pct(d.hybrid.recall) + "%")}
+        ${row("Precision", pct(d.rf_only.precision) + "%", pct(d.hybrid.precision) + "%")}
+        ${row("F1", pct(d.rf_only.f1) + "%", pct(d.hybrid.f1) + "%")}
+        ${row("False positive rate", pct(d.rf_only.false_positive_rate) + "%",
+              pct(d.hybrid.false_positive_rate) + "%")}
+        ${row("Unseen attack types (" + u.flows + " flows)",
+              pct(u.rf_only) + "%", pct(u.hybrid) + "%")}
+      </table>
+      <div class="why">Random Forest names the attack families it was trained on.
+      Isolation Forest, trained only on normal traffic, catches what the classifier
+      would otherwise label normal &mdash; which is why detection of the 17 attack
+      types absent from training rises from ${pct(u.rf_only)}% to ${pct(u.hybrid)}%.
+      The cost is a higher false positive rate, shown above.</div>
+    </div>`;
+}
+
+async function tick(){
+  try{
+    const [snap, al] = await Promise.all([get("/api/twin"), get("/api/alerts?limit=40")]);
+    renderZones(snap);
+    renderAlerts(al.alerts);
+  }catch(err){
+    document.getElementById("h-time").textContent = "backend offline";
+  }
+}
+
+document.getElementById("reset").onclick = async () => {
+  await fetch(API + "/api/reset", {method: "POST"});
+  openAlert = null;
+  tick();
+};
+
+get("/api/model/metrics").then(renderModel).catch(() => {});
+tick();
+setInterval(tick, 2000);
+</script>
+</body>
+</html>
